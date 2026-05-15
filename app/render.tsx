@@ -1,20 +1,40 @@
 import { ActionFunction } from "react-router";
-import { renderVideo } from "./lib/render-video.server";
-import { SITE_NAME, COMPOSITION_ID } from "./remotion/constants.mjs";
+import {
+  SITE_NAME,
+  COMPOSITION_ID,
+  REGION,
+  LAMBDA_FUNCTION_NAME,
+} from "./remotion/constants.mjs";
 import { errorAsJson } from "./lib/return-error-as-json";
-import { RenderRequest } from "./remotion/schemata";
+import { CompositionProps } from "./remotion/schemata";
+import { renderMediaOnLambda } from "@remotion/lambda/client";
 
 export const action: ActionFunction = errorAsJson(async ({ request }) => {
-  const formData = await request.json();
-  const { inputProps } = RenderRequest.parse(formData);
+  const body = (await request.json()) as {
+    outName: string;
+    inputProps: CompositionProps;
+  };
+  const { inputProps, outName } = body;
 
-  const renderData = await renderVideo({
+  const { renderId, bucketName } = await renderMediaOnLambda({
+    region: REGION,
+    functionName: LAMBDA_FUNCTION_NAME,
     serveUrl: SITE_NAME,
     composition: COMPOSITION_ID,
     inputProps,
-    outName: `logo-animation.mp4`,
+    codec: "h264",
+    crf: 28,
+    downloadBehavior: {
+      type: "download",
+      fileName: `${outName}.mp4`,
+    },
     metadata: null,
   });
 
-  return renderData;
+  return {
+    renderId,
+    bucketName,
+    functionName: LAMBDA_FUNCTION_NAME,
+    region: REGION,
+  };
 });

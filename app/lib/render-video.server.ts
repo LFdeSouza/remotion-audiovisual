@@ -1,11 +1,7 @@
-import {
-  renderMediaOnLambda,
-  speculateFunctionName,
-} from "@remotion/lambda/client";
+import { renderMediaOnLambda } from "@remotion/lambda/client";
 import type { RenderResponse } from "./types";
-import { z } from "zod";
 import { CompositionProps } from "~/remotion/schemata";
-import { DISK, RAM, REGION, TIMEOUT } from "~/remotion/constants.mjs";
+import { REGION } from "~/remotion/constants.mjs";
 
 export const renderVideo = async ({
   serveUrl,
@@ -16,7 +12,7 @@ export const renderVideo = async ({
 }: {
   serveUrl: string;
   composition: string;
-  inputProps: z.infer<typeof CompositionProps>;
+  inputProps: CompositionProps;
   outName: string;
   metadata: Record<string, string> | null;
 }): Promise<RenderResponse> => {
@@ -39,11 +35,7 @@ export const renderVideo = async ({
 
   const { renderId, bucketName } = await renderMediaOnLambda({
     region: REGION,
-    functionName: speculateFunctionName({
-      diskSizeInMb: DISK,
-      memorySizeInMb: RAM,
-      timeoutInSeconds: TIMEOUT,
-    }),
+    functionName: process.env.REMOTION_FUNCTION_NAME!,
     serveUrl,
     composition,
     inputProps,
@@ -58,11 +50,7 @@ export const renderVideo = async ({
   return {
     renderId,
     bucketName,
-    functionName: speculateFunctionName({
-      diskSizeInMb: DISK,
-      memorySizeInMb: RAM,
-      timeoutInSeconds: TIMEOUT,
-    }),
+    functionName: process.env.REMOTION_FUNCTION_NAME!,
     region: REGION,
   };
 };

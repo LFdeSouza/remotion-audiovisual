@@ -10,10 +10,11 @@ export const ProgressBar: React.FC<{
   }, [progress]);
 
   return (
-    <div>
-      <div className="w-full h-2.5 rounded-md appearance-none bg-unfocused-border-color mt-2.5 mb-6">
+    <div className="mt-2.5 mb-6 w-full rounded-md bg-transparent">
+      <p>Progresso:</p>
+      <div className="w-full rounded-lg bg-gray-950">
         <div
-          className="bg-foreground h-2.5 rounded-md transition-all ease-in-out duration-100"
+          className="h-3.5 animate-pulse rounded-md bg-blue-700 transition-all duration-100 ease-in-out"
           style={fill}
         ></div>
       </div>

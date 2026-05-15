@@ -1,67 +1,66 @@
-import { z } from "zod";
 import {
   AbsoluteFill,
-  Sequence,
-  spring,
+  OffthreadVideo,
   useCurrentFrame,
-  useVideoConfig,
+  Series,
 } from "remotion";
-import { ReactRouterLogo } from "./ReactRouterLogo";
-import { loadFont, fontFamily } from "@remotion/google-fonts/Inter";
-import React, { useMemo } from "react";
-import { Rings } from "./Rings";
-import { TextFade } from "./TextFade";
+import React from "react";
 import { CompositionProps } from "../schemata";
-
-const weight = "600" as const;
-
-loadFont("normal", {
-  weights: ["400", weight],
-});
+import { COMPOSITION_FPS } from "../constants.mjs";
+import { VideoSegment } from "./VideoSegment";
+import { Cover, BackCover } from "./Cover";
 
 const container: React.CSSProperties = {
   backgroundColor: "white",
 };
 
-const logo: React.CSSProperties = {
-  justifyContent: "center",
-  alignItems: "center",
-};
-
-export const Main = ({ title }: z.infer<typeof CompositionProps>) => {
+export const Main = ({
+  videoSegments,
+  resizingVideo,
+  hasCover,
+  orderData,
+}: CompositionProps) => {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  if (!videoSegments.length) {
+    return <AbsoluteFill style={container}></AbsoluteFill>;
+  }
 
-  const transitionStart = 2 * fps;
-  const transitionDuration = 1 * fps;
+  const lastVideoFrame = Math.floor(
+    videoSegments[videoSegments.length - 1].compositionEnd * COMPOSITION_FPS,
+  );
 
-  const logoOut = spring({
-    fps,
-    frame,
-    config: {
-      damping: 200,
-    },
-    durationInFrames: transitionDuration,
-    delay: transitionStart,
-  });
-
-  const titleStyle: React.CSSProperties = useMemo(() => {
-    return { fontFamily, fontSize: 70, fontWeight: weight };
-  }, []);
+  if (resizingVideo) {
+    return (
+      <AbsoluteFill>
+        <OffthreadVideo src={resizingVideo.src} />
+      </AbsoluteFill>
+    );
+  }
 
   return (
-    <AbsoluteFill style={container}>
-      <Sequence durationInFrames={transitionStart + transitionDuration}>
-        <Rings outProgress={logoOut}></Rings>
-        <AbsoluteFill style={logo}>
-          <ReactRouterLogo outProgress={logoOut}></ReactRouterLogo>
-        </AbsoluteFill>
-      </Sequence>
-      <Sequence from={transitionStart + transitionDuration / 2}>
-        <TextFade>
-          <h1 style={titleStyle}>{title}</h1>
-        </TextFade>
-      </Sequence>
-    </AbsoluteFill>
+    <Series>
+      {hasCover && (
+        <Series.Sequence durationInFrames={11 * COMPOSITION_FPS}>
+          <Cover frame={frame} orderData={orderData} />
+        </Series.Sequence>
+      )}
+
+      {videoSegments.map((segment) => {
+        const durationInFrames = Math.floor(
+          (segment.end - segment.start) * COMPOSITION_FPS,
+        );
+        return (
+          <Series.Sequence durationInFrames={durationInFrames}>
+            <VideoSegment segment={segment} frame={frame} />
+          </Series.Sequence>
+        );
+      })}
+
+      {hasCover && (
+        <Series.Sequence durationInFrames={10 * COMPOSITION_FPS + 30}>
+          <BackCover frame={frame} initialFrame={lastVideoFrame} />
+        </Series.Sequence>
+      )}
+    </Series>
   );
 };

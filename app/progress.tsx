@@ -1,25 +1,18 @@
-import {
-  getRenderProgress,
-  speculateFunctionName,
-} from "@remotion/lambda/client";
+import { getRenderProgress } from "@remotion/lambda/client";
 import { ActionFunction } from "react-router";
 import { errorAsJson } from "./lib/return-error-as-json";
 import { ProgressRequest, ProgressResponse } from "./remotion/schemata";
-import { DISK, RAM, REGION, TIMEOUT } from "./remotion/constants.mjs";
+import { LAMBDA_FUNCTION_NAME, REGION } from "./remotion/constants.mjs";
+import "dotenv/config";
 
 export const action: ActionFunction = errorAsJson(
   async ({ request }): Promise<ProgressResponse> => {
-    const body = await request.json();
-    const { bucketName, id } = ProgressRequest.parse(body);
+    const body = (await request.json()) as ProgressRequest;
 
     const renderProgress = await getRenderProgress({
-      renderId: id,
-      bucketName,
-      functionName: speculateFunctionName({
-        diskSizeInMb: DISK,
-        memorySizeInMb: RAM,
-        timeoutInSeconds: TIMEOUT,
-      }),
+      renderId: body.id,
+      bucketName: body.bucketName,
+      functionName: LAMBDA_FUNCTION_NAME,
       region: REGION,
     });
     if (renderProgress.fatalErrorEncountered) {

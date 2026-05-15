@@ -1,4 +1,3 @@
-import { z } from "zod";
 import {
   CompositionProps,
   ProgressRequest,
@@ -38,11 +37,14 @@ const makeRequest = async <Res>(
 
 export const renderVideo = async ({
   inputProps,
+  outName,
 }: {
-  inputProps: z.infer<typeof CompositionProps>;
+  inputProps: CompositionProps;
+  outName: string;
 }) => {
-  const body: z.infer<typeof RenderRequest> = {
+  const body: RenderRequest = {
     inputProps,
+    outName,
   };
 
   return makeRequest<RenderResponse>("/api/lambda/render", body);
@@ -55,7 +57,7 @@ export const getProgress = async ({
   id: string;
   bucketName: string;
 }) => {
-  const body: z.infer<typeof ProgressRequest> = {
+  const body: ProgressRequest = {
     id,
     bucketName,
   };
