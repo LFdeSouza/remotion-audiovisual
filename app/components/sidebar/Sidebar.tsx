@@ -2,7 +2,7 @@ import { Disc2, Trash2, VideoIcon, FileVideo2Icon } from "lucide-react";
 import { useVideoContext } from "~/hooks/useVideo";
 import { VideoFile } from "~/remotion/schemata";
 import { formatTime } from "../utils";
-import { useLocation, Link } from "react-router";
+import { useLocation, Link, useNavigate } from "react-router";
 import Tooltip from "../shared/tooltip";
 import {
   MouseEvent,
@@ -28,6 +28,7 @@ export default function Sidebar() {
     deleteVideo,
   } = useVideoContext();
 
+  const navigate = useNavigate();
   const importMedia = useCallback(
     async (file: File | undefined) => {
       if (!file) return;
@@ -39,8 +40,9 @@ export default function Sidebar() {
   const handleSelectVideo = useCallback(
     async (file: VideoFile) => {
       selectVideo(file);
+      navigate(`/editor${window.location.search}`);
     },
-    [selectVideo],
+    [selectVideo, navigate],
   );
 
   const handleDeleteVideo = useCallback(
@@ -63,8 +65,9 @@ export default function Sidebar() {
   const handleStartNewReport = useCallback(
     async (video: VideoFile) => {
       startNewReport(video);
+      navigate(`/editor${window.location.search}`);
     },
-    [startNewReport],
+    [startNewReport, navigate],
   );
 
   return (

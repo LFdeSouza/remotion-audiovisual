@@ -29,6 +29,7 @@ export const action: ActionFunction = errorAsJson(async ({ request }) => {
       fileName: `${outName}.mp4`,
     },
     metadata: null,
+    licenseKey: process.env.REMOTION_LICENCE,
   });
 
   return {

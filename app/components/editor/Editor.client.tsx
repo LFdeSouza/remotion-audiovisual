@@ -55,7 +55,10 @@ export default function Editor() {
     );
 
     // Video should ocupy 80% of timeline for better editing experience
-    const rulerLength = (maxDurationInSeconds * 100) / 75;
+    const rulerLength = Math.max(
+      ((maxDurationInSeconds + COVER_DURATION_IN_SECONDS * 2) * 100) / 75,
+      120,
+    );
     setRulerLength(rulerLength);
     //Conversion factor to convert px to seconds in the timeline
     setConversionFactor(timelineWidth / rulerLength);
