@@ -95,9 +95,12 @@ function RenderPanel({
         "",
       );
 
+      const file = new File([blob], filename);
       await addVideoToIndexDb(blob, filename, "report");
-      setRenderedReport(new File([blob], filename));
+      setRenderedReport(file);
+      return file;
     },
+
     [renderParams, resetProgress],
   );
 
@@ -155,16 +158,92 @@ function RenderPanel({
     [],
   );
 
+  // Upload rendered result to data center and create an entry on OrderFiles
+  const uploadToMedicalReport = useCallback(
+    async (renderedReport: File) => {
+      if (!renderParams.inputProps.orderData || !renderedReport) {
+        toast.error(
+          "Alguma coisa deu errada. Por favor tente novamente mais tarde.",
+        );
+        return;
+      }
+
+      try {
+        // Upload file to datacenter
+        const formData = new FormData();
+        formData.append("file", renderedReport);
+        const id = renderParams.inputProps.orderData.id;
+        const uploadRes = await axios.postForm(
+          `https://apirouter.bmkimagem.com.br:21043/3dfile/${id}`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+              "Access-Control-Allow-Origin": "*",
+            },
+            maxBodyLength: 10000000,
+            maxContentLength: 10000000,
+          },
+        );
+
+        // Create orderFile entry in database
+        const hash = uploadRes.data.hash;
+        const token = localStorage.getItem("token");
+        await axios.post(
+          `${import.meta.env.VITE_TELERISON_API}/createOrderFile`,
+          {
+            code: renderParams.inputProps.orderData.code,
+            hash,
+          },
+          {
+            headers: {
+              Authorization: token,
+            },
+          },
+        );
+
+        return null;
+      } catch (error) {
+        console.error(error);
+        if (error instanceof AxiosError) {
+          return new Error(
+            `Alguma coisa deu errada, ${error.response?.data?.error}`,
+          );
+        }
+        return new Error("Alguma coisa deu errada");
+      }
+    },
+    [renderParams],
+  );
+
   useEffect(() => {
     if (state.status === "error") {
       toast.error(state.error.message);
       resetProgress();
     } else if (state.status === "done") {
-      downloadAndSetOutput(state.url).then(() => {
-        toast.success("Laudo audiovisual criado com sucesso.");
+      console.log("here");
+      downloadAndSetOutput(state.url).then((file) => {
+        if (renderParams.inputProps.orderData?.id && file) {
+          console.log("uploading");
+          uploadToMedicalReport(file).then((error) => {
+            if (error) {
+              toast.error(`Alguma coisa deu errada`);
+              return;
+            }
+            toast.success("Laudo audiovisual enviado para o exame.");
+          });
+        } else {
+          toast.success("Laudo audiovisual criado com sucesso.");
+        }
       });
     }
-  }, [state, renderParams.inputProps, downloadAndSetOutput, resetProgress]);
+  }, [
+    state,
+    renderParams.inputProps,
+    downloadAndSetOutput,
+    resetProgress,
+    uploadToMedicalReport,
+  ]);
 
   // Download the rendered result and save it locally into index db
 
@@ -179,59 +258,6 @@ function RenderPanel({
     a.target = "_blank";
     a.click();
   }, [renderedReport]);
-
-  // Upload rendered result to data center and create an entry on OrderFiles
-  const uploadToMedicalReport = useCallback(async () => {
-    if (!renderParams.inputProps.orderData || !renderedReport) {
-      toast.error(
-        "Alguma coisa deu errada. Por favor tente novamente mais tarde.",
-      );
-      return;
-    }
-
-    try {
-      // Upload file to datacenter
-      const formData = new FormData();
-      formData.append("file", renderedReport);
-      const id = renderParams.inputProps.orderData.id;
-      const uploadRes = await axios.postForm(
-        `https://apirouter.bmkimagem.com.br:21043/3dfile/${id}`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            "Access-Control-Allow-Origin": "*",
-          },
-          maxBodyLength: 10000000,
-          maxContentLength: 10000000,
-        },
-      );
-
-      // Create orderFile entry in database
-      const hash = uploadRes.data.hash;
-      const token = localStorage.getItem("token");
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_TELERISON_API}/createOrderFile`,
-        {
-          code: renderParams.inputProps.orderData.code,
-          hash,
-        },
-        {
-          headers: {
-            Authorization: token,
-          },
-        },
-      );
-
-      toast.success("Arquivo enviado com sucesso!");
-    } catch (error) {
-      console.error(error);
-      if (error instanceof AxiosError) {
-        toast.message(error.response?.data?.error);
-      }
-      return [null, new Error("Alguma coisa deu errada")];
-    }
-  }, [renderParams, renderedReport]);
 
   const handleClosePanel = useCallback(() => {
     if (uploading || ["invoking", "rendering"].includes(state.status)) {
@@ -316,14 +342,6 @@ function RenderPanel({
 
               {state.status === "done" && renderedReport && (
                 <>
-                  {renderParams.inputProps.orderData && (
-                    <button
-                      className="mx-auto mt-10 flex w-80 cursor-pointer items-center justify-center rounded-lg bg-cyan-700 p-2 text-sm text-white hover:bg-cyan-800"
-                      onClick={uploadToMedicalReport}
-                    >
-                      Adicionar laudo audiovisual ao laudo
-                    </button>
-                  )}
                   <button
                     className="mx-auto mt-10 flex w-80 cursor-pointer items-center justify-center rounded-lg bg-red-500 p-2 text-sm text-white hover:bg-red-600"
                     onClick={downloadFile}
