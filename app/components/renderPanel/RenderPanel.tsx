@@ -221,16 +221,16 @@ function RenderPanel({
       toast.error(state.error.message);
       resetProgress();
     } else if (state.status === "done") {
-      console.log("here");
       downloadAndSetOutput(state.url).then((file) => {
         if (renderParams.inputProps.orderData?.id && file) {
-          console.log("uploading");
           uploadToMedicalReport(file).then((error) => {
             if (error) {
               toast.error(`Alguma coisa deu errada`);
               return;
             }
-            toast.success("Laudo audiovisual enviado para o exame.");
+            toast.success(
+              "Laudo audiovisual enviado para o exame, mas ele pode demorar alguns minutos para ficar disponível para visualização.",
+            );
           });
         } else {
           toast.success("Laudo audiovisual criado com sucesso.");
@@ -307,19 +307,21 @@ function RenderPanel({
       >
         <div className="h-full p-10 text-white">
           <h2 className="text-center text-xl font-semibold">Exportar vídeo</h2>
-          <p className="p-5 text-sm opacity-60">
-            Aperte em "gerar laudo" para realizar a conversão do vídeo. Ele será
-            salvo em seu navegador automáticamente, e estará disponível na
-            página: 'Meus laudos'{" "}
-          </p>
           <div className="p-10">
             {!uploading && state.status === "init" && (
-              <button
-                onClick={render}
-                className="mx-auto mb-10 block w-full cursor-pointer rounded-lg bg-blue-600 p-2 text-white hover:bg-blue-700"
-              >
-                Gerar vídeo
-              </button>
+              <>
+                <p className="p-5 text-sm opacity-60">
+                  Aperte em "gerar laudo" para realizar a conversão do vídeo.
+                  Ele será salvo em seu navegador automáticamente, e estará
+                  disponível na página: 'Meus laudos'{" "}
+                </p>
+                <button
+                  onClick={render}
+                  className="mx-auto mb-10 block w-full cursor-pointer rounded-lg bg-blue-600 p-2 text-white hover:bg-blue-700"
+                >
+                  Gerar vídeo
+                </button>
+              </>
             )}
 
             <div className="mx-auto">
@@ -342,6 +344,13 @@ function RenderPanel({
 
               {state.status === "done" && renderedReport && (
                 <>
+                  <p className="p-5 text-sm opacity-60">
+                    Seu laudo audiovisual já foi encaminhado à solicitação,
+                    porém, ele pode demorar alguns minutos para ficar disponível
+                    em nossos servidores. Você também pode visualizar o laudo na
+                    página "Meus laudos" ou fazer o download diretamente para o
+                    seu computador.
+                  </p>
                   <button
                     className="mx-auto mt-10 flex w-80 cursor-pointer items-center justify-center rounded-lg bg-red-500 p-2 text-sm text-white hover:bg-red-600"
                     onClick={downloadFile}
