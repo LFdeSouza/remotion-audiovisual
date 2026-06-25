@@ -18,8 +18,14 @@ import { LoaderCircleIcon } from "lucide-react";
 import EmptySkeleton from "./Empty";
 
 export default function Editor() {
-  const { selectedVideos, loading, orderData, resetState, clearResetState } =
-    useVideoContext();
+  const {
+    selectedVideos,
+    loading,
+    orderData,
+    timelineAction,
+    changeTimelineAction,
+    revokeUnusedVideo,
+  } = useVideoContext();
   const videoAreaRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<PlayerRef | null>(null);
   const [rulerLength, setRulerLength] = useState(0);
@@ -45,6 +51,12 @@ export default function Editor() {
    */
   useLayoutEffect(() => {
     if (!videoAreaRef.current || !selectedVideos.length) {
+      return;
+    }
+
+    // Skip reseting timeline if selectedFiles changed because of a deleted segment
+    if (timelineAction === "revokeUnused") {
+      changeTimelineAction("editing");
       return;
     }
     const dimensions = videoAreaRef.current.getBoundingClientRect();
@@ -74,8 +86,9 @@ export default function Editor() {
       let accumulatedDuration = hasCoverRef.current
         ? COVER_DURATION_IN_SECONDS
         : 0;
-      //Get the accumulated duration of previous state of the video, skip if its reseting
-      if (!resetState) {
+      //Get the accumulated duration of previous state of the video only if is editing.
+      //Otherwise it will be reseting the timeline to start a new composition
+      if (timelineAction === "editing") {
         for (const segment of prev.videoSegments) {
           accumulatedDuration += segment.end - segment.start;
         }
@@ -97,7 +110,7 @@ export default function Editor() {
         accumulatedDuration + COVER_DURATION_IN_SECONDS;
 
       let newSegments = [];
-      if (resetState) {
+      if (timelineAction === "resetTimeline") {
         newSegments = [newSegment];
       } else {
         newSegments = [...prev.videoSegments, newSegment];
@@ -109,9 +122,9 @@ export default function Editor() {
         resizingVideo: null,
       };
     });
-    // reset value
-    clearResetState();
-  }, [selectedVideos, resetState, clearResetState]);
+    //Reset the timelineAction to editing in case it is reseting
+    changeTimelineAction("editing");
+  }, [selectedVideos, timelineAction, changeTimelineAction]);
 
   const handleToggleCover = useCallback(() => {
     setHasCover((hadCover) => {
@@ -148,11 +161,12 @@ export default function Editor() {
   }, []);
 
   const handleDeleteSegment = useCallback(() => {
-    let accumulatedDuration = hasCover ? COVER_DURATION_IN_SECONDS : 0;
     setTimeline((prev) => {
+      let accumulatedDuration = hasCover ? COVER_DURATION_IN_SECONDS : 0;
       if (prev.videoSegments.length === 1) {
         return prev;
       }
+      // Filter removed segment and recalculate start and end of each segment
       const newSegments = prev.videoSegments
         .filter((_, idx) => idx !== selectedSegment)
         .map((segment) => {
@@ -170,6 +184,15 @@ export default function Editor() {
         ? accumulatedDuration + COVER_DURATION_IN_SECONDS
         : accumulatedDuration;
 
+      // If there is no more references to the url of the deleted segment, update selectedFiles
+      const deletedSegmentUrl = prev.videoSegments[selectedSegment].src;
+      const stillInTimeline = newSegments.find(
+        (i) => i.src === deletedSegmentUrl,
+      );
+      if (!stillInTimeline) {
+        revokeUnusedVideo(deletedSegmentUrl);
+        changeTimelineAction("revokeUnused");
+      }
       return {
         videoSegments: newSegments,
         durationInFrames: Math.floor(totalDurationInSeconds * COMPOSITION_FPS),
@@ -177,7 +200,7 @@ export default function Editor() {
       };
     });
     setSelectedSegment(0);
-  }, [hasCover, selectedSegment]);
+  }, [hasCover, selectedSegment, revokeUnusedVideo, changeTimelineAction]);
 
   const consolidateSegmentResize = useCallback(
     (idx: number, start: number, end: number) => {

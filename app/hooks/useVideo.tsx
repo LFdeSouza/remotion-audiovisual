@@ -9,10 +9,12 @@ import {
 } from "../lib/videoUtils";
 import { VideoFile, VideoFileWithUrl, OrderData } from "~/remotion/schemata";
 
+type TimelineAction = "editing" | "resetTimeline" | "revokeUnused";
 interface IVideoContext {
   selectedVideos: VideoFileWithUrl[];
   selectVideo: (video: VideoFile) => void;
   startNewReport: (video: VideoFile) => void;
+  revokeUnusedVideo: (url: string) => void;
   videos: VideoFile[];
   addVideo: (
     mediaBlob: File | Blob,
@@ -20,8 +22,8 @@ interface IVideoContext {
   deleteVideo: (id: string) => Promise<["ok", null] | [null, Error]>;
   loading: boolean;
   orderData: OrderData | null;
-  resetState: boolean;
-  clearResetState: () => void;
+  timelineAction: TimelineAction;
+  changeTimelineAction: (value: TimelineAction) => void;
 }
 
 const VideoContext = React.createContext<IVideoContext | null>(null);
@@ -30,7 +32,8 @@ function VideosProvider({ children }: { children: React.ReactNode }) {
   const [searchParams] = useSearchParams();
   const [selectedVideos, setSelectedVideos] = useState<VideoFileWithUrl[]>([]);
   const [videos, setVideos] = useState<VideoFile[]>([]);
-  const [resetState, setResetState] = useState(false);
+  const [timelineAction, setTimelineAction] =
+    useState<TimelineAction>("editing");
   // Loading is necessary when there is a order in the search param. Component will start with loading set to true, and
   // will be set to false in the useEffect during mount
   const [loading, setLoading] = useState(true);
@@ -111,7 +114,7 @@ function VideosProvider({ children }: { children: React.ReactNode }) {
    * Clear selected videos and set a new one
    */
   const startNewReport = (file: VideoFile) => {
-    setResetState(true);
+    setTimelineAction("resetTimeline");
     setSelectedVideos((prev) => {
       //Revoke unused urls
       for (const video of prev) {
@@ -123,8 +126,20 @@ function VideosProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const clearResetState = async () => {
-    setResetState(false);
+  /**
+   * Clean unused videos in timeline
+   * When user deletes a segment, if there is no longer any segments with that video, revoke the url and
+   * remove from the selectedVideos array
+   */
+  const revokeUnusedVideo = (url: string) => {
+    setTimelineAction("revokeUnused");
+    setSelectedVideos((prev) => {
+      return prev.filter((i) => i.url !== url);
+    });
+  };
+
+  const changeTimelineAction = (value: TimelineAction) => {
+    setTimelineAction(value);
   };
 
   /**
@@ -152,11 +167,12 @@ function VideosProvider({ children }: { children: React.ReactNode }) {
         videos,
         addVideo,
         startNewReport,
+        revokeUnusedVideo,
         deleteVideo,
         loading,
         orderData,
-        resetState,
-        clearResetState,
+        timelineAction,
+        changeTimelineAction,
       }}
     >
       {children}
