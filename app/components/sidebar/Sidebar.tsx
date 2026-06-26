@@ -282,7 +282,10 @@ const VideoSelectionMenu = ({
         }`}
       >
         <button
-          onClick={() => handleSelectVideo(video)}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSelectVideo(video);
+          }}
           className="block w-full cursor-pointer rounded p-2 text-left hover:bg-slate-800"
         >
           Adicionar a linha do tempo
